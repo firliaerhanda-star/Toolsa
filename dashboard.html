@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard - Tool SA PRO</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        /* ==========================================
+           GAYA TAMBAHAN KHUSUS DASHBOARD
+        ========================================== */
+        .nav-tabs-scrollable { 
+            display: flex; gap: 8px; background-color: var(--bg-hover); padding: 8px; 
+            border-radius: var(--radius-md); margin-bottom: 20px; overflow-x: auto; 
+            white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none; 
+        }
+        .nav-tabs-scrollable::-webkit-scrollbar { display: none; }
+        .nav-tabs-scrollable button { 
+            flex: 0 0 auto; background: transparent; border: none; color: var(--text-muted); 
+            padding: 10px 15px; border-radius: var(--radius-sm); font-weight: 600; 
+            font-size: 13px; cursor: pointer; transition: 0.3s; border: 1px solid transparent;
+        }
+        .nav-tabs-scrollable button.active { 
+            background-color: var(--primary); color: #ffffff; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); 
+        }
+
+        .code-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; margin-top: 15px; }
+        .code-label span { font-size: 13px; font-weight: 600; color: var(--border-focus); }
+        .copy-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: 0.2s; font-weight: 600; width: 80px; text-align: center; }
+        .copy-btn:hover { background: var(--border-color); color: white; }
+        .copy-btn:active { transform: scale(0.95); }
+        
+        .code-textarea { font-family: monospace; font-size: 12px; line-height: 1.4; background-color: #0b1120; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+        
+        .ai-result-area { min-height: 200px; cursor: default; background-color: #0f172a; border-style: solid; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+        .loading-text { color: var(--warning); font-weight: 600; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <div class="header" style="margin-bottom: 20px;">
+            <div class="logo">
+                <span class="icon">⚡</span> Tool <span class="pro">SA</span>
+            </div>
+            <button class="btn-logout" onclick="logoutUser()">Keluar</button>
+        </div>
+
+        <div class="nav-tabs-scrollable">
+            <button id="btnLivery" class="active" onclick="switchTab('livery')">✨ Livery Studio</button>
+            <button id="btnTimecyc" onclick="switchTab('timecyc')">🌤️ Timecyc Maker</button>
+            <button id="btnSaaexten" onclick="switchTab('saaexten')">📱 SAAExten Maker</button>
+            <button id="btnConverter" onclick="switchTab('converter')">⚙️ V to SA</button>
+        </div>
+
+        <div id="sectionLivery">
+            <div class="card">
+                <div class="card-header"><div class="title"><span class="icon-box">🥞</span> 1. Template UV Map</div></div>
+                <div class="upload-area">
+                    <span style="font-size: 24px; margin-bottom: 10px;">📄</span>
+                    <span>Klik / Drag UV Map (.png)</span>
+                    <input type="file" id="uvMapFile" accept="image/png, image/jpeg" onchange="previewImage(this, 'previewUV')">
+                    <img id="previewUV" class="preview-img" alt="UV Preview">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="title"><span class="icon-box">🖼️</span> 2. Referensi Desain</div></div>
+                <div class="upload-area">
+                    <span style="font-size: 24px; margin-bottom: 10px;">📸</span>
+                    <span>Upload Gambar Referensi</span>
+                    <input type="file" id="refLiveryFile" accept="image/png, image/jpeg" onchange="previewImage(this, 'previewRefLivery')">
+                    <img id="previewRefLivery" class="preview-img" alt="Referensi Preview">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="title"><span class="icon-box">🪄</span> 3. Prompt & Generate</div></div>
+                <textarea rows="3" placeholder="Deskripsikan gaya livery (misal: Gaya racing merah putih dengan sponsor...)"></textarea>
+                <button class="btn-primary" onclick="generateLivery(this, 'aiResultLivery')">🪄 Generate Livery</button>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="title">Hasil Generate</div>
+                    <button class="btn-secondary" onclick="downloadFile(this)">📥 Download</button>
+                </div>
+                <div class="upload-area ai-result-area" id="boxLiveryResult">
+                    <span id="aiResultLivery" style="color: #475569;">[ Area Gambar AI ]</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="sectionTimecyc" class="hidden">
+            <div class="card">
+                <div class="card-header"><div class="title"><span class="icon-box">🌅</span> Referensi Grafik Suasana</div></div>
+                <div class="upload-area">
+                    <span style="font-size: 24px; margin-bottom: 10px;">📸</span>
+                    <span>Upload Foto Referensi Suasana/Langit</span>
+                    <input type="file" id="refTimecycFile" accept="image/png, image/jpeg" onchange="previewImage(this, 'previewRefTimecyc')">
+                    <img id="previewRefTimecyc" class="preview-img" alt="Referensi Timecyc">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="title"><span class="icon-box">💬</span> Prompt Detail</div></div>
+                <textarea id="promptTimecyc" rows="3" placeholder="Contoh: Buatkan grafik senja di Los Santos dengan warna oranye keemasan pekat, bayangan gelap..."></textarea>
+                <button class="btn-primary" onclick="generateTimecyc(this)">🌤️ Generate Grafik</button>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="title">📄 Output Code (GTA SA)</div></div>
+                
+                <div class="code-label"><span>timecyc.dat</span> <button class="copy-btn" onclick="copyCode(this, 'outTimecyc')">Copy</button></div>
+                <textarea id="outTimecyc" class="code-textarea" rows="6" readonly placeholder="Menunggu proses generate..."></textarea>
+
+                <div class="code-label"><span>colorcycle.dat</span> <button class="copy-btn" onclick="copyCode(this, 'outColorcycle')">Copy</button></div>
+                <textarea id="outColorcycle" class="code-textarea" rows="4" readonly placeholder="Menunggu proses generate..."></textarea>
+
+                <div class="code-label"><span>carcols.dat</span> <button class="copy-btn" onclick="copyCode(this, 'outCarcols')">Copy</button></div>
+                <textarea id="outCarcols" class="code-textarea" rows="5" readonly placeholder="Menunggu proses generate..."></textarea>
+            </div>
+        </div>
+
+        <div id="sectionSaaexten" class="hidden">
+            <div class="card">
+                <div class="card-header"><div class="title"><span class="icon-box">📱</span> Referensi Grafik SAAExten</div></div>
+                <div class="upload-area">
+                    <span style="font-size: 24px; margin-bottom: 10px;">📸</span>
+                    <span>Upload Foto Referensi Grafik (Reflections, Shadows)</span>
+                    <input type="file" id="refSaaFile" accept="image/png, image/jpeg" onchange="previewImage(this, 'previewRefSaa')">
+                    <img id="previewRefSaa" class="preview-img" alt="Referensi SAAExten">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="title"><span class="icon-box">💬</span> Prompt Detail</div></div>
+                <textarea id="promptSaa" rows="3" placeholder="Contoh: Buatkan config SAAExten dengan refleksi mobil ultra HD, bayangan tajam, tanpa lag."></textarea>
+                <button class="btn-primary" onclick="generateSAAExten(this)">⚙️ Generate Config</button>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="title">📄 Output Code (Android)</div></div>
+                
+                <div class="code-label"><span>Config.ini</span> <button class="copy-btn" onclick="copyCode(this, 'outSaaConfig')">Copy</button></div>
+                <textarea id="outSaaConfig" class="code-textarea" rows="12" readonly placeholder="Menunggu proses generate..."></textarea>
+            </div>
+        </div>
+
+        <div id="sectionConverter" class="hidden">
+            <div class="card">
+                <div class="card-header"><div class="title"><span class="icon-box">⚙️</span> Upload File Meta GTA V</div></div>
+                
+                <label>File handling.meta:</label>
+                <input type="file" id="handlingV" accept=".meta" class="file-input-box">
+                
+                <label>File vehicles.meta:</label>
+                <input type="file" id="vehiclesV" accept=".meta" class="file-input-box">
+                
+                <button class="btn-primary" onclick="convertFiles(this)">🔄 Convert ke GTA SA</button>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="title"><span class="icon-box">📄</span> Output Format GTA SA</div></div>
+                <div class="code-label"><span>handling.cfg</span> <button class="copy-btn" onclick="copyCode(this, 'outHandling')">Copy</button></div>
+                <textarea id="outHandling" class="code-textarea" rows="4" readonly placeholder="Menunggu konversi..."></textarea>
+                
+                <div class="code-label"><span>vehicles.ide</span> <button class="copy-btn" onclick="copyCode(this, 'outVehicles')">Copy</button></div>
+                <textarea id="outVehicles" class="code-textarea" rows="3" readonly placeholder="Menunggu konversi..."></textarea>
+            </div>
+        </div>
+
+        <div class="footer-text" style="margin-top: 20px;">Powered by Tool SA Development</div>
+    </div>
+
+    <script src="app.js"></script>
+    
+    <script>
+        // 1. Pengecekan Akses Login
+        window.onload = function() {
+            if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+                window.location.href = 'index.html';
+            }
+        };
+
+        // 2. Navigasi Tab
+        function switchTab(tabId) {
+            const tabs = ['livery', 'timecyc', 'saaexten', 'converter'];
+            tabs.forEach(t => {
+                const formattedId = t.charAt(0).toUpperCase() + t.slice(1);
+                document.getElementById(`section${formattedId}`).classList.add('hidden');
+                document.getElementById(`btn${formattedId}`).classList.remove('active');
+            });
+            const activeFormattedId = tabId.charAt(0).toUpperCase() + tabId.slice(1);
+            document.getElementById(`section${activeFormattedId}`).classList.remove('hidden');
+            document.getElementById(`btn${activeFormattedId}`).classList.add('active');
+        }
+
+        // 3. Live Preview Gambar
+        function previewImage(input, imgElementId) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imgElement = document.getElementById(imgElementId);
+                    imgElement.src = e.target.result;
+                    imgElement.style.display = 'block'; 
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // 4. Copy ke Clipboard
+        function copyCode(btn, elementId) {
+            const copyText = document.getElementById(elementId);
+            if (!copyText.value || copyText.value === "") {
+                alert("Tidak ada kode untuk disalin!");
+                return;
+            }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ Copying...";
+            btn.style.color = "var(--warning)";
+            btn.style.borderColor = "var(--warning)";
+            
+            setTimeout(() => {
+                navigator.clipboard.writeText(copyText.value).then(() => {
+                    btn.innerHTML = "✅ Copied!";
+                    btn.style.color = "var(--success)";
+                    btn.style.borderColor = "var(--success)";
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.style.color = "var(--text-muted)";
+                        btn.style.borderColor = "var(--border-color)";
+                    }, 1500);
+                }).catch(err => {
+                    copyText.select();
+                    document.execCommand("copy");
+                    btn.innerHTML = "✅ Copied!";
+                    setTimeout(() => { btn.innerHTML = originalText; }, 1500);
+                });
+            }, 600);
+        }
+
+        // 5. Animasi Tombol Download
+        function downloadFile(btn) {
+            const textElement = document.getElementById('aiResultLivery');
+            if (textElement.innerText.includes("Area Gambar")) {
+                alert("⚠️ Silakan generate livery terlebih dahulu sebelum mengunduh!");
+                return;
+            }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ Menyiapkan File...";
+            btn.disabled = true;
+
+            setTimeout(() => {
+                btn.innerHTML = "📥 Mengunduh...";
+                setTimeout(() => {
+                    btn.innerHTML = "✅ Selesai!";
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }, 2000);
+                }, 1500);
+            }, 1000);
+        }
+
+        // ==================================================
+        // LOGIKA GENERATOR AI (DENGAN VALIDASI INPUT)
+        // ==================================================
+
+        // Generator Livery
+        function generateLivery(btn, targetId) {
+            // Validasi File
+            const uvFile = document.getElementById('uvMapFile').files[0];
+            const refFile = document.getElementById('refLiveryFile').files[0];
+            
+            if (!uvFile || !refFile) {
+                alert("⚠️ Sistem AI menolak! Harap upload file 'Template UV Map' dan 'Gambar Referensi' terlebih dahulu agar AI dapat bekerja.");
+                return;
+            }
+
+            const originalText = btn.innerHTML;
+            const targetEl = document.getElementById(targetId);
+            
+            btn.innerHTML = "⏳ Membaca UV Map...";
+            btn.disabled = true;
+            btn.style.backgroundColor = "#94a3b8";
+            targetEl.className = "loading-text";
+            targetEl.innerText = "Menganalisis Pola UV...";
+
+            setTimeout(() => {
+                btn.innerHTML = "⏳ Menggabungkan Referensi...";
+                targetEl.innerText = "Menerapkan Prompt ke Tekstur...";
+                
+                setTimeout(() => {
+                    btn.innerHTML = "⏳ Merender AI Model...";
+                    targetEl.innerText = "Melakukan Rendering Final (Upscaling)...";
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        btn.style.backgroundColor = "var(--primary)";
+                        
+                        targetEl.className = "";
+                        targetEl.innerText = "[ Proses render sukses! File tekstur siap diunduh. ]";
+                        targetEl.style.color = "var(--success)";
+                    }, 2500);
+                }, 2000);
+            }, 1500);
+        }
+
+        // Generator Timecyc
+        function generateTimecyc(btn) {
+            // Validasi File
+            const refFile = document.getElementById('refTimecycFile').files[0];
+            if (!refFile) {
+                alert("⚠️ Sistem AI membutuhkan sampel visual! Harap upload 'Foto Referensi Suasana/Langit' terlebih dahulu.");
+                return;
+            }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ Ekstraksi Palet Warna...";
+            btn.disabled = true;
+            btn.style.backgroundColor = "#94a3b8";
+            
+            document.getElementById('outTimecyc').value = "Menghitung nilai RGB Ambient...";
+            document.getElementById('outColorcycle').value = "Memproses siklus cuaca...";
+            document.getElementById('outCarcols').value = "Menganalisis pantulan kendaraan...";
+
+            setTimeout(() => {
+                btn.innerHTML = "⏳ Menerjemahkan ke Data HEX...";
+                
+                setTimeout(() => {
+                    btn.innerHTML = "⏳ Mengkompilasi Script...";
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        btn.style.backgroundColor = "var(--primary)";
+
+                        document.getElementById('outTimecyc').value = 
+`// Amb, Dir, SkyTop, SkyBot, SunCore, SunCorona, SunSz, SprSz, Shad, Light, Pole, FarClp, FogDst, Flsh
+25 25 25  255 120 50  255 200 100  10 10  0 0 0  150  1.0  0.5
+30 30 30  200 100 40  255 180 90   12 12  0 0 0  200  1.2  0.6
+35 35 35  180 90 30   255 160 80   14 14  0 0 0  250  1.4  0.7`;
+
+                        document.getElementById('outColorcycle').value = 
+`// Ambient, Directional
+255 200 150  255 255 255
+240 180 130  255 250 240
+220 160 110  255 240 220`;
+
+                        document.getElementById('outCarcols').value = 
+`col
+0,0,0 # 0 black
+245,245,245 # 1 white
+42,119,161 # 2 blue
+132,4,16 # 3 red
+end`;
+                    }, 1500);
+                }, 1500);
+            }, 1500);
+        }
+
+        // Generator SAAExten
+        function generateSAAExten(btn) {
+            // Validasi File
+            const refFile = document.getElementById('refSaaFile').files[0];
+            if (!refFile) {
+                alert("⚠️ Config tidak bisa dirakit! Harap upload 'Foto Referensi Grafik (Reflections, Shadows)' terlebih dahulu.");
+                return;
+            }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ Menganalisis Parameter Grafis...";
+            btn.disabled = true;
+            btn.style.backgroundColor = "#94a3b8";
+            document.getElementById('outSaaConfig').value = "Mencocokkan kapabilitas GPU Android...";
+
+            setTimeout(() => {
+                btn.innerHTML = "⏳ Menulis Config.ini...";
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    btn.style.backgroundColor = "var(--primary)";
+
+                    document.getElementById('outSaaConfig').value = 
+`[Graphics]
+ShadowQuality=3
+ReflectionQuality=2
+WaterQuality=2
+GrassDrawDistance=150.0
+
+[ColorCorrection]
+EnableColorFilter=1
+Brightness=1.2
+Contrast=1.1
+Saturation=1.5
+
+[Effects]
+EnableSunShafts=1
+SunShaftIntensity=0.8
+EnableMotionBlur=0`;
+                }, 2000);
+            }, 2000);
+        }
+
+        // Converter GTA V to SA
+        function convertFiles(btn) {
+            const handlingFile = document.getElementById('handlingV').files[0];
+            const vehiclesFile = document.getElementById('vehiclesV').files[0];
+
+            if (!handlingFile || !vehiclesFile) {
+                alert("⚠️ Sistem XML Parser ditolak! Harap upload file 'handling.meta' DAN 'vehicles.meta' GTA V terlebih dahulu.");
+                return;
+            }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ Ekstraksi File XML (.meta)...";
+            btn.disabled = true;
+            btn.style.backgroundColor = "#94a3b8";
+            
+            document.getElementById('outHandling').value = "Membaca node data...";
+            document.getElementById('outVehicles').value = "Membaca node kendaraan...";
+
+            setTimeout(() => {
+                btn.innerHTML = "⏳ Mengkalkulasi Physics & Mass...";
+                
+                setTimeout(() => {
+                    btn.innerHTML = "⏳ Menyusun Struktur .cfg & .ide...";
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        btn.style.backgroundColor = "var(--primary)";
+
+                        document.getElementById('outHandling').value = 
+`ELEGY       1500.0 3200.0 2.0 0.0 0.0 -0.15 70 0.85 0.85 0.47 5 200.0 24.0 10.0 R P 8.0 0.55 0 30.0 1.2 0.15 0.0 0.28 -0.15 0.5 0.3 0.25 0.27 35000 280010 4000000 1 1 0`;
+
+                        document.getElementById('outVehicles').value = 
+`562, elegy, elegy, car, ELEGY, ELEGY, null, executive, 10, 0, 0, -1, 0.77, 0.77, 0`;
+
+                    }, 1500);
+                }, 1500);
+            }, 1500);
+        }
+    </script>
+</body>
+</html>
