@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Member - Modder Tools</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 30px; width: 100%; max-width: 400px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); }
+        h2 { margin-top: 0; margin-bottom: 25px; font-size: 24px; text-align: center; color: #38bdf8; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 5px; }
+        input[type="text"], input[type="password"] { width: 100%; background-color: #0f172a; border: 1px solid #475569; color: #f8fafc; padding: 12px; border-radius: 8px; outline: none; box-sizing: border-box; transition: 0.2s; }
+        input:focus { border-color: #38bdf8; }
+        input[readonly] { background-color: #334155; color: #cbd5e1; cursor: not-allowed; border-color: #334155; }
+        .btn-primary { background-color: #2563eb; color: white; border: none; padding: 14px; width: 100%; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        .btn-primary:hover { background-color: #1d4ed8; }
+        .btn-primary:disabled { background-color: #475569; cursor: wait; }
+        .message { margin-top: 15px; text-align: center; font-size: 14px; font-weight: 500; }
+        
+        /* Link WhatsApp Baru */
+        .link-wa { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 20px; color: #25D366; font-size: 15px; font-weight: 600; text-decoration: none; padding: 10px; border: 1px solid #25D366; border-radius: 8px; transition: 0.2s; background-color: rgba(37, 211, 102, 0.1); }
+        .link-wa:hover { background-color: rgba(37, 211, 102, 0.2); }
+        
+        .link-login { display: block; text-align: center; margin-top: 15px; color: #94a3b8; font-size: 13px; text-decoration: none; }
+        .link-login:hover { color: #38bdf8; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>📝 Register Member</h2>
+        
+        <div class="input-group">
+            <label>Buat User ID</label>
+            <input type="text" id="regId" placeholder="Masukkan ID (tanpa spasi)">
+        </div>
+        <div class="input-group">
+            <label>Buat Password</label>
+            <input type="password" id="regPass" placeholder="Masukkan Password">
+        </div>
+        <div class="input-group">
+            <label>IP Address (Otomatis & Terkunci)</label>
+            <input type="text" id="regIp" value="Mendeteksi IP..." readonly>
+        </div>
+        <div class="input-group">
+            <label>Device / HP (Otomatis & Terkunci)</label>
+            <input type="text" id="regDevice" value="Mendeteksi Device..." readonly>
+        </div>
+
+        <button id="btnRegister" class="btn-primary" onclick="registerUser()" disabled>Memuat Data Sistem...</button>
+        <div id="regMsg" class="message"></div>
+        
+        <a href="#" onclick="sendToAdminWA(); return false;" class="link-wa">
+            💬 Sudah registrasi? Lapor ke admin yuk
+        </a>
+
+        <a href="index.html" class="link-login">Kembali ke halaman Login</a>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+    apiKey: "AIzaSyBrbRkpbYszvLNYlTe2j6X1X2IGlLsxBKg",
+        authDomain: "liverystudio-cbcc5.firebaseapp.com",
+        projectId: "liverystudio-cbcc5",
+        storageBucket: "liverystudio-cbcc5.firebasestorage.app",
+        messagingSenderId: "207187493422",
+        appId: "1:207187493422:web:c97229c4bd47639b7055bf"
+    };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // --- 2. FUNGSI GET DEVICE MODEL ---
+        async function getDeviceModel() {
+            if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+                try {
+                    const uaData = await navigator.userAgentData.getHighEntropyValues(["model", "platform"]);
+                    if (uaData.model) return `${uaData.platform} - ${uaData.model}`;
+                } catch (e) {}
+            }
+            const ua = navigator.userAgent;
+            if (/iPhone/i.test(ua)) return "Apple iPhone";
+            if (/iPad/i.test(ua)) return "Apple iPad";
+            if (/Macintosh/i.test(ua)) return "Apple Mac";
+            const androidMatch = ua.match(/Android\s+[.\d]+;\s+([^;]+?)\s+Build/i) || ua.match(/Android\s+[.\d]+;\s+([^;]+?)\)/i);
+            if (androidMatch && androidMatch[1]) {
+                let model = androidMatch[1].trim();
+                if (model.includes("wv")) model = model.replace("wv", "").trim();
+                return `Android - ${model}`;
+            }
+            if (/Windows/i.test(ua)) return "Windows PC";
+            if (/Linux/i.test(ua)) return "Linux PC";
+            return "Unknown Device";
+        }
+
+        // --- 3. FUNGSI FETCH SYSTEM DATA ---
+        async function fetchSystemData() {
+            const ipInput = document.getElementById('regIp');
+            const deviceInput = document.getElementById('regDevice');
+            const btnReg = document.getElementById('btnRegister');
+            
+            deviceInput.value = await getDeviceModel();
+
+            try {
+                let response = await fetch('https://api.ipify.org?format=json');
+                let data = await response.json();
+                ipInput.value = data.ip;
+            } catch (error1) {
+                try {
+                    let response2 = await fetch('https://api.seeip.org/jsonip');
+                    let data2 = await response2.json();
+                    ipInput.value = data2.ip;
+                } catch (error2) {
+                    try {
+                        let response3 = await fetch('https://ipapi.co/json/');
+                        let data3 = await response3.json();
+                        ipInput.value = data3.ip;
+                    } catch (error3) {
+                        ipInput.value = "Gagal mengambil IP";
+                        document.getElementById('regMsg').innerText = "Matikan Adblock untuk mendaftar.";
+                        document.getElementById('regMsg').style.color = "#ef4444";
+                    }
+                }
+            }
+            btnReg.innerText = "Daftar Sekarang";
+            btnReg.disabled = false;
+        }
+
+        // --- 4. FUNGSI REGISTER USER ---
+        async function registerUser() {
+            const id = document.getElementById('regId').value.trim();
+            const pass = document.getElementById('regPass').value;
+            const ip = document.getElementById('regIp').value;
+            const device = document.getElementById('regDevice').value;
+            const msgBox = document.getElementById('regMsg');
+            const btnReg = document.getElementById('btnRegister');
+
+            if (!id || !pass) {
+                msgBox.style.color = '#ef4444'; msgBox.innerText = "ID dan Password wajib diisi!"; return;
+            }
+            if (ip === "Mendeteksi IP..." || ip === "Gagal mengambil IP") {
+                msgBox.style.color = '#ef4444'; msgBox.innerText = "Harap tunggu sistem mendapatkan IP Address Anda!"; return;
+            }
+
+            btnReg.innerText = "Menyimpan Data...";
+            btnReg.disabled = true;
+
+            try {
+                const checkDoc = await db.collection("members").doc(id).get();
+                if (checkDoc.exists) {
+                    msgBox.style.color = '#ef4444';
+                    msgBox.innerText = "User ID sudah terdaftar! Gunakan ID lain.";
+                    btnReg.innerText = "Daftar Sekarang"; btnReg.disabled = false; return;
+                }
+
+                await db.collection("members").doc(id).set({
+                    password: pass,
+                    ip: ip,
+                    device: device,
+                    status: "pending", 
+                    isOnline: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                msgBox.style.color = '#34d399';
+                msgBox.innerText = "Pendaftaran Berhasil! Silakan klik tombol Lapor ke Admin di bawah.";
+                
+                // Hapus redirect otomatis agar mereka punya waktu mengklik tombol WA
+                // setTimeout(() => { window.location.href = 'index.html'; }, 2000); 
+
+                btnReg.innerText = "Telah Terdaftar ✓";
+
+            } catch (error) {
+                msgBox.style.color = '#ef4444';
+                msgBox.innerText = "Gagal mendaftar. Pastikan konfigurasi Firebase benar.";
+                btnReg.innerText = "Daftar Sekarang"; btnReg.disabled = false;
+            }
+        }
+
+        // --- 5. FUNGSI LAPOR KE WHATSAPP ADMIN ---
+        function sendToAdminWA() {
+            const id = document.getElementById('regId').value.trim() || "[ID Kosong/Belum Diisi]";
+            const ip = document.getElementById('regIp').value;
+            const device = document.getElementById('regDevice').value;
+            
+            // ⚠️ GANTI DENGAN NOMOR WA ADMIN (Gunakan format 62 tanpa + atau 0)
+            const adminPhone = "6281234567890"; 
+            
+            // Format Pesan WhatsApp
+            const message = `Halo Admin, saya baru saja melakukan pendaftaran akun di Modder Tools.%0A%0A*Data Pendaftaran Saya:*%0A- *User ID:* ${id}%0A- *IP Address:* ${ip}%0A- *Device:* ${device}%0A%0AMohon agar akun saya segera disetujui (Approve) agar bisa login. Terima kasih min!`;
+            
+            const waUrl = `https://wa.me/${adminPhone}?text=${message}`;
+            window.open(waUrl, '_blank');
+        }
+
+        window.onload = fetchSystemData;
+    </script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Livery Studio PRO & Converter</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        /* RESET & GLOBAL STYLES */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: #0b1120; color: #f8fafc; display: flex; justify-content: center; padding: 20px; }
+        
+        /* CONTAINER (App-like layout) */
+        .app-container { width: 100%; max-width: 550px; /* Dibuat agak ramping agar persis seperti aplikasi mobile */ }
+
+        /* HEADER & NAVIGATION */
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; }
+        .logo { font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: #f8fafc; }
+        .logo span.icon { color: #ef4444; }
+        .logo span.pro { background-color: rgba(16, 185, 129, 0.2); color: #10b981; font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 600; border: 1px solid rgba(16, 185, 129, 0.3); }
+        
+        .nav-tabs { display: flex; gap: 10px; background-color: #1e293b; padding: 5px; border-radius: 10px; width: 100%; }
+        .nav-tabs button { flex: 1; background: transparent; border: none; color: #94a3b8; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.3s; }
+        .nav-tabs button.active { background-color: #334155; color: #f8fafc; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        
+        .btn-logout { background-color: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px 15px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.2s; }
+        .btn-logout:hover { background-color: #ef4444; color: white; }
+
+        /* CARDS */
+        .card { background-color: #151e32; border-radius: 14px; padding: 20px; margin-bottom: 20px; border: 1px solid #283548; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .card-header { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 15px; margin-bottom: 15px; color: #e2e8f0; }
+        .card-header .title { display: flex; align-items: center; gap: 10px; }
+        .icon-box { background-color: #1e293b; padding: 6px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+
+        /* UPLOAD AREA (DASHED BOX) */
+        .upload-area { border: 2px dashed #334155; border-radius: 10px; padding: 30px 20px; text-align: center; color: #94a3b8; cursor: pointer; transition: 0.2s; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; background-color: rgba(30, 41, 59, 0.3); }
+        .upload-area:hover { border-color: #64748b; background-color: rgba(30, 41, 59, 0.6); }
+        .upload-area img.preview-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 8px; z-index: 10; display: none; }
+        .upload-area input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 20; }
+
+        /* INPUTS & TEXTAREA */
+        textarea, .file-input-box { width: 100%; background-color: #0b1120; border: 1px solid #283548; color: #f8fafc; padding: 15px; border-radius: 10px; margin-bottom: 15px; outline: none; font-size: 14px; resize: none; }
+        textarea:focus { border-color: #ef4444; }
+        
+        /* BUTTONS */
+        .btn-primary { background-color: #ef4444; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); }
+        .btn-primary:hover { background-color: #dc2626; transform: translateY(-1px); }
+        .btn-secondary { background-color: #1e293b; border: 1px solid #334155; color: #f8fafc; padding: 8px 15px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; gap: 5px; align-items: center; }
+        .btn-secondary:hover { background-color: #334155; }
+
+        .hidden { display: none !important; }
+        .footer-text { text-align: center; color: #475569; font-size: 12px; margin-top: -5px; margin-bottom: 20px; }
+        
+        /* Converter specific */
+        label { font-size: 13px; color: #94a3b8; margin-bottom: 8px; display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <div class="header">
+            <div class="logo">
+                <span class="icon">⚡</span> Livery Studio <span class="pro">PRO</span>
+            </div>
+            <button class="btn-logout" onclick="logoutUser()">Logout</button>
+        </div>
+
+        <div class="nav-tabs" style="margin-bottom: 20px;">
+            <button id="btnLivery" class="active" onclick="switchTab('livery')">✨ Livery Studio</button>
+            <button id="btnConverter" onclick="switchTab('converter')">⚙️ Converter V to SA</button>
+        </div>
+
+        <div id="sectionLivery">
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="title"><span class="icon-box">🥞</span> 1. Template UV Map</div>
+                </div>
+                <div class="upload-area">
+                    <span style="font-size: 24px; margin-bottom: 10px;">📄</span>
+                    <span>Klik atau Drag UV Map (.png)</span>
+                    <input type="file" accept="image/png, image/jpeg" onchange="previewImage(this, 'previewUV')">
+                    <img id="previewUV" class="preview-img" alt="UV Preview">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="title"><span class="icon-box">🖼️</span> 2. Referensi Desain</div>
+                </div>
+                <div class="upload-area">
+                    <span style="font-size: 24px; margin-bottom: 10px;">📸</span>
+                    <span>Upload Referensi Gambar</span>
+                    <input type="file" accept="image/png, image/jpeg" onchange="previewImage(this, 'previewRef')">
+                    <img id="previewRef" class="preview-img" alt="Referensi Preview">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="title"><span class="icon-box">🪄</span> 3. Prompt & Generate</div>
+                </div>
+                <textarea rows="3" placeholder="Buatkan semirip mungkin dengan gambar Referensi Desain yang saya input..."></textarea>
+                <button class="btn-primary" onclick="generateMockup(this)">
+                    <span>🪄</span> Generate livery
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="title">Preview Hasil</div>
+                    <button class="btn-secondary"><span>📥</span> Download</button>
+                </div>
+                <div class="upload-area" style="min-height: 250px; cursor: default; background-color: #0f172a; border-style: solid;">
+                    <div id="aiLoading" class="hidden" style="color: #ef4444; font-weight: 600;">Memproses AI...</div>
+                    <span id="aiPlaceholder" style="color: #475569;">[ Area Hasil Generate AI ]</span>
+                </div>
+            </div>
+            
+            <div class="footer-text">Powered by Yumachi Modder SA</div>
+        </div>
+
+        <div id="sectionConverter" class="hidden">
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="title"><span class="icon-box">⚙️</span> Upload File GTA V (.meta)</div>
+                </div>
+                
+                <label>File handling.meta:</label>
+                <input type="file" id="handlingV" accept=".meta" class="file-input-box">
+                
+                <label>File vehicles.meta:</label>
+                <input type="file" id="vehiclesV" accept=".meta" class="file-input-box">
+                
+                <button class="btn-primary" onclick="convertFiles()" style="background-color: #2563eb; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);">
+                    <span>🔄</span> Convert ke GTA SA
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="title"><span class="icon-box">📄</span> Hasil Konversi (GTA SA)</div>
+                </div>
+                <label>handling.cfg</label>
+                <textarea id="outputHandling" rows="4" readonly placeholder="Hasil konversi handling..."></textarea>
+                
+                <label>vehicles.ide</label>
+                <textarea id="outputVehicles" rows="4" readonly placeholder="Hasil konversi vehicles..."></textarea>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="app.js"></script>
+    
+    <script>
+        // 1. Pengecekan Akses (Mencegah Bypass URL)
+        window.onload = function() {
+            if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+                window.location.href = 'index.html';
+            }
+        };
+
+        // 2. Fungsi Pindah Tab
+        function switchTab(tab) {
+            document.getElementById('sectionLivery').classList.add('hidden');
+            document.getElementById('sectionConverter').classList.add('hidden');
+            document.getElementById('btnLivery').classList.remove('active');
+            document.getElementById('btnConverter').classList.remove('active');
+
+            if (tab === 'livery') {
+                document.getElementById('sectionLivery').classList.remove('hidden');
+                document.getElementById('btnLivery').classList.add('active');
+            } else {
+                document.getElementById('sectionConverter').classList.remove('hidden');
+                document.getElementById('btnConverter').classList.add('active');
+            }
+        }
+
+        // 3. Fungsi Live Preview Gambar (Agar box upload langsung berubah jadi gambar)
+        function previewImage(input, imgElementId) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const imgElement = document.getElementById(imgElementId);
+                    imgElement.src = e.target.result;
+                    imgElement.style.display = 'block'; // Tampilkan gambar
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // 4. Simulasi Animasi Generate Button (Kosmetik)
+        function generateMockup(btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ Generating...";
+            btn.disabled = true;
+            btn.style.backgroundColor = "#94a3b8";
+            
+            document.getElementById('aiPlaceholder').classList.add('hidden');
+            document.getElementById('aiLoading').classList.remove('hidden');
+
+            // Simulasi loading 2 detik
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.style.backgroundColor = "#ef4444";
+                
+                document.getElementById('aiLoading').classList.add('hidden');
+                document.getElementById('aiPlaceholder').classList.remove('hidden');
+                document.getElementById('aiPlaceholder').innerText = "[ Fitur AI sedang dikembangkan di Backend ]";
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

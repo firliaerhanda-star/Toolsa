@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Modder Tools</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        /* RESET & GLOBAL STYLES */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { 
+            background-color: #0b1120; 
+            color: #f8fafc; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            padding: 20px; 
+        }
+        
+        /* CARD CONTAINER */
+        .card { 
+            background-color: #151e32; 
+            border: 1px solid #283548; 
+            border-radius: 14px; 
+            padding: 35px 30px; 
+            width: 100%; 
+            max-width: 400px; 
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); 
+        }
+
+        /* LOGO & HEADER */
+        .header-box { text-align: center; margin-bottom: 30px; }
+        .logo { 
+            font-size: 24px; 
+            font-weight: 700; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            gap: 8px; 
+            color: #f8fafc; 
+            margin-bottom: 10px;
+        }
+        .logo span.icon { color: #ef4444; }
+        .logo span.pro { 
+            background-color: rgba(16, 185, 129, 0.2); 
+            color: #10b981; 
+            font-size: 11px; 
+            padding: 3px 8px; 
+            border-radius: 6px; 
+            font-weight: 600; 
+            border: 1px solid rgba(16, 185, 129, 0.3); 
+        }
+        .subtitle { font-size: 14px; color: #94a3b8; }
+
+        /* INPUT GROUPS */
+        .input-group { margin-bottom: 18px; }
+        .input-group label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; }
+        input[type="text"], input[type="password"] { 
+            width: 100%; 
+            background-color: #0f172a; 
+            border: 1px solid #334155; 
+            color: #f8fafc; 
+            padding: 14px; 
+            border-radius: 10px; 
+            outline: none; 
+            font-size: 14px;
+            transition: 0.2s border-color; 
+        }
+        input:focus { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1); }
+
+        /* BUTTON */
+        .btn-primary { 
+            background-color: #2563eb; 
+            color: white; 
+            border: none; 
+            padding: 15px; 
+            width: 100%; 
+            border-radius: 10px; 
+            font-weight: 600; 
+            font-size: 15px; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            margin-top: 10px;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+        .btn-primary:hover { background-color: #1d4ed8; transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(0); }
+
+        /* MESSAGES & LINKS */
+        .message { margin-top: 15px; text-align: center; font-size: 14px; font-weight: 500; min-height: 20px; }
+        
+        .divider { 
+            display: flex; 
+            align-items: center; 
+            text-align: center; 
+            margin: 25px 0; 
+            color: #475569; 
+            font-size: 12px; 
+        }
+        .divider::before, .divider::after { 
+            content: ''; 
+            flex: 1; 
+            border-bottom: 1px solid #283548; 
+        }
+        .divider:not(:empty)::before { margin-right: 15px; }
+        .divider:not(:empty)::after { margin-left: 15px; }
+
+        .link-register { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            color: #e2e8f0; 
+            font-size: 14px; 
+            text-decoration: none; 
+            padding: 12px; 
+            border: 1px solid #334155; 
+            border-radius: 10px; 
+            transition: 0.2s; 
+            background-color: transparent;
+            font-weight: 500;
+        }
+        .link-register:hover { background-color: #1e293b; border-color: #475569; }
+        .link-register span { color: #38bdf8; margin-left: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        
+        <div class="header-box">
+            <div class="logo">
+                <span class="icon">⚡</span> Livery Studio <span class="pro">PRO</span>
+            </div>
+            <div class="subtitle">Modder Tools & Converter Access</div>
+        </div>
+
+        <div class="input-group">
+            <label>User ID</label>
+            <input type="text" id="loginId" placeholder="Masukkan User ID Anda" autocomplete="off">
+        </div>
+
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="loginPass" placeholder="Masukkan Password Anda">
+        </div>
+
+        <button class="btn-primary" onclick="attemptLogin()">Login ke Dashboard</button>
+        
+        <div id="loginMsg" class="message"></div>
+
+        <div class="divider">BELUM PUNYA AKSES?</div>
+
+        <a href="register.html" class="link-register">
+            Minta akses ke Admin <span>Daftar Disini</span>
+        </a>
+
+    </div>
+
+    <script src="app.js"></script>
+
+    <script>
+        window.onload = function() {
+            if (sessionStorage.getItem('isLoggedIn') === 'true') {
+                window.location.href = 'dashboard.html';
+            }
+        };
+        
+        // Memungkinkan user menekan tombol "Enter" di keyboard untuk login
+        document.getElementById("loginPass").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                attemptLogin();
+            }
+        });
+    </script>
+</body>
+</html>
